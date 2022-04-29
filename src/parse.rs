@@ -1,19 +1,12 @@
 use anyhow::{anyhow, Result};
-use std::{env, fs::File, path::Path};
+use std::{fs::File, path::Path};
 
 use crate::config::data::*;
 
 pub fn parse_solana_config() -> Option<SolanaConfig> {
-    let home = if cfg!(unix) {
-        env::var_os("HOME").expect("Couldn't find UNIX home key.")
-    } else if cfg!(windows) {
-        let drive = env::var_os("HOMEDRIVE").expect("Couldn't find Windows home drive key.");
-        let path = env::var_os("HOMEPATH").expect("Couldn't find Windows home path key.");
-        Path::new(&drive).join(&path).as_os_str().to_owned()
-    } else if cfg!(target_os = "macos") {
-        env::var_os("HOME").expect("Couldn't find MacOS home key.")
-    } else {
-        panic!("Unsupported OS!");
+    let home = match home::home_dir() {
+        Some(path) => path,
+        None => panic!("Unsupported OS!"),
     };
 
     let config_path = Path::new(&home)
