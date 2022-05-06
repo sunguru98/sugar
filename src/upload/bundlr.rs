@@ -4,6 +4,7 @@ use bundlr_sdk::{tags::Tag, Bundlr, SolanaSigner};
 use clap::crate_version;
 use console::style;
 use futures::future::select_all;
+use solana_client::rpc_client::RpcClient;
 use std::{
     cmp,
     collections::HashSet,
@@ -114,7 +115,7 @@ impl BundlrHandler {
 
     /// Add fund to the Bundlr address.
     pub async fn fund_bundlr_address(
-        program: &Program,
+        rpc: RpcClient,
         http_client: &HttpClient,
         bundlr_address: &Pubkey,
         node: &str,
@@ -122,7 +123,7 @@ impl BundlrHandler {
         amount: u64,
     ) -> Result<Response> {
         let ix = system_instruction::transfer(&payer.pubkey(), bundlr_address, amount);
-        let recent_blockhash = program.rpc().get_latest_blockhash()?;
+        let recent_blockhash = rpc.get_latest_blockhash()?;
         let payer_pubkey = payer.pubkey();
 
         let tx = Transaction::new_signed_with_payer(
@@ -140,17 +141,15 @@ impl BundlrHandler {
             amount as f64 / LAMPORTS_PER_SOL as f64
         );
 
-        let sig = program
-            .rpc()
-            .send_and_confirm_transaction_with_spinner_and_commitment(
-                &tx,
-                CommitmentConfig::confirmed(),
-            )?;
+        let sig = rpc.send_and_confirm_transaction_with_spinner_and_commitment(
+            &tx,
+            CommitmentConfig::confirmed(),
+        )?;
 
         println!("{} {sig}", style("Signature:").bold());
 
         let mut map = HashMap::new();
-        map.insert("tx_id", sig.to_string());
+        map.insert("tx_id", "hi".to_string());
         let url = format!("{}/account/balance/solana", node);
         let response = http_client.post(&url).json(&map).send().await?;
 
@@ -269,13 +268,16 @@ impl UploadHandler for BundlrHandler {
         );
 
         // funds the bundlr wallet for media upload
-
-        let client = setup_client(sugar_config)?;
-        let program = client.program(CANDY_MACHINE_ID);
+        let rpc: RpcClient;
+        {
+            let client = setup_client(sugar_config)?;
+            let program = client.program(CANDY_MACHINE_ID);
+            rpc = program.rpc();
+        }
 
         if lamports_fee > balance {
             BundlrHandler::fund_bundlr_address(
-                &program,
+                rpc,
                 &http_client,
                 &self.pubkey,
                 &self.node,
