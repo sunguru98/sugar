@@ -38,9 +38,9 @@ jobs:
             sudo apt-get update
             sudo apt-get install libudev-dev
           fi
-          
+
           cargo build --all --release --locked
-          
+
           binary_extension=""
           if [[ "${RUNNER_OS}" == "Windows" ]]; then
             binary_extension=".exe"
@@ -53,7 +53,7 @@ jobs:
           fi
           mv "target/release/sugar${binary_extension}" "${binary_path}"
           echo "::set-output name=binary_path::${binary_path}"
-          
+
           strip "${binary_path}"
 
       - name: Publish Artifacts
@@ -65,6 +65,5 @@ jobs:
 
       - name: Release Tags
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: ${{ steps.build.outputs.binary_path }}
